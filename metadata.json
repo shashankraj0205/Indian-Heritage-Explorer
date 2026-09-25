@@ -1,0 +1,6 @@
+{
+  "name": "India Heritage Explorer",
+  "description": "Interactive Indian heritage-discovery platform with search, filters, curated stories, AI storytelling modes, and interactive 3D architectural models.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

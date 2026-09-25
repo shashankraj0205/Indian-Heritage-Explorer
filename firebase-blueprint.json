@@ -1,0 +1,156 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user profile with email and metadata",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "User identifier matching auth uid",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the explorer",
+          "maxLength": 120
+        },
+        "bio": {
+          "type": "string",
+          "description": "Short bio or heritage interests",
+          "maxLength": 500
+        },
+        "role": {
+          "type": "string",
+          "description": "Account role",
+          "enum": ["explorer", "admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of account creation",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "email", "displayName", "createdAt"]
+    },
+    "HeritageVisit": {
+      "title": "HeritageVisit",
+      "description": "User log of a visited Indian heritage monument",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique visit document ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Auth UID of the owner",
+          "maxLength": 128
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Email of the traveler",
+          "maxLength": 256
+        },
+        "userName": {
+          "type": "string",
+          "description": "Name of the traveler",
+          "maxLength": 120
+        },
+        "monumentId": {
+          "type": "string",
+          "description": "Monument slug or identifier",
+          "maxLength": 128
+        },
+        "monumentName": {
+          "type": "string",
+          "description": "Name of the heritage site",
+          "maxLength": 200
+        },
+        "state": {
+          "type": "string",
+          "description": "Indian state or union territory",
+          "maxLength": 100
+        },
+        "visitDate": {
+          "type": "string",
+          "description": "Date of the visit (YYYY-MM-DD)",
+          "maxLength": 30
+        },
+        "rating": {
+          "type": "number",
+          "description": "Visit experience rating from 1 to 5"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Travel notes, architectural highlights, or memory",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "userId", "monumentId", "monumentName", "visitDate", "rating", "createdAt"]
+    },
+    "HeritageBookmark": {
+      "title": "HeritageBookmark",
+      "description": "Bookmarked monument for user bucket list",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique bookmark document ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Auth UID of the user saving the bookmark",
+          "maxLength": 128
+        },
+        "monumentId": {
+          "type": "string",
+          "description": "ID of the bookmarked monument",
+          "maxLength": 128
+        },
+        "monumentName": {
+          "type": "string",
+          "description": "Title of the monument",
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "description": "Category such as Fort, Temple, Monument, Art",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp when bookmarked",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "userId", "monumentId", "monumentName", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Secure user profile documents isolated to account owner"
+    },
+    "/heritageVisits/{visitId}": {
+      "schema": "HeritageVisit",
+      "description": "User logged heritage visits, reviews, and architectural field notes"
+    },
+    "/bookmarks/{bookmarkId}": {
+      "schema": "HeritageBookmark",
+      "description": "User saved heritage bucket list items"
+    }
+  }
+}

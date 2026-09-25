@@ -1,0 +1,113 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default Deny All: Catch-all safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entity Validation: UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['id', 'email', 'displayName', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'email', 'displayName', 'bio', 'role', 'createdAt']) &&
+        data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+        data.email is string && data.email.size() > 3 && data.email.size() <= 256 &&
+        data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 120 &&
+        (!('bio' in data) || (data.bio is string && data.bio.size() <= 500)) &&
+        (!('role' in data) || (data.role in ['explorer', 'admin'])) &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    // Entity Validation: HeritageVisit
+    function isValidHeritageVisit(data) {
+      return data.keys().hasAll(['id', 'userId', 'monumentId', 'monumentName', 'visitDate', 'rating', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'userEmail', 'userName', 'monumentId', 'monumentName', 'state', 'visitDate', 'rating', 'notes', 'createdAt']) &&
+        data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+        data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+        (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 256)) &&
+        (!('userName' in data) || (data.userName is string && data.userName.size() <= 120)) &&
+        data.monumentId is string && data.monumentId.size() > 0 && data.monumentId.size() <= 128 &&
+        data.monumentName is string && data.monumentName.size() > 0 && data.monumentName.size() <= 200 &&
+        (!('state' in data) || (data.state is string && data.state.size() <= 100)) &&
+        data.visitDate is string && data.visitDate.size() > 0 && data.visitDate.size() <= 30 &&
+        (data.rating is int || data.rating is float) && data.rating >= 1 && data.rating <= 5 &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    // Entity Validation: HeritageBookmark
+    function isValidHeritageBookmark(data) {
+      return data.keys().hasAll(['id', 'userId', 'monumentId', 'monumentName', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'monumentId', 'monumentName', 'category', 'createdAt']) &&
+        data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+        data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+        data.monumentId is string && data.monumentId.size() > 0 && data.monumentId.size() <= 128 &&
+        data.monumentName is string && data.monumentName.size() > 0 && data.monumentName.size() <= 200 &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    // Connection Probe document
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // User Profile: Strict PII boundary
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false; // Blanket read forbidden for PII security
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                    isValidUserProfile(incoming()) && incoming().id == userId;
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                    isValidUserProfile(incoming()) && incoming().id == userId &&
+                    incoming().email == existing().email &&
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio']);
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // Heritage Visits: Private field logs & journal reviews
+    match /heritageVisits/{visitId} {
+      allow get: if isSignedIn() && isValidId(visitId) && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(visitId) && incoming().userId == request.auth.uid &&
+                    isValidHeritageVisit(incoming()) && incoming().id == visitId;
+      allow update: if isSignedIn() && isValidId(visitId) && incoming().userId == request.auth.uid &&
+                    existing().userId == request.auth.uid && isValidHeritageVisit(incoming()) &&
+                    incoming().id == existing().id && incoming().userId == existing().userId &&
+                    incoming().monumentId == existing().monumentId &&
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['visitDate', 'rating', 'notes']);
+      allow delete: if isSignedIn() && isValidId(visitId) && existing().userId == request.auth.uid;
+    }
+
+    // Heritage Bookmarks: User bucket list
+    match /bookmarks/{bookmarkId} {
+      allow get: if isSignedIn() && isValidId(bookmarkId) && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(bookmarkId) && incoming().userId == request.auth.uid &&
+                    isValidHeritageBookmark(incoming()) && incoming().id == bookmarkId;
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(bookmarkId) && existing().userId == request.auth.uid;
+    }
+  }
+}
